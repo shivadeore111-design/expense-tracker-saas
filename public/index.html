@@ -16,8 +16,10 @@
       background: white;
       padding: 30px;
       border-radius: 12px;
-      width: 350px;
+      width: 380px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      overflow-y: auto;
+      max-height: 90vh;
     }
 
     input {
@@ -39,12 +41,41 @@
       margin-bottom: 10px;
     }
 
+    button.delete {
+      background: #e74c3c;
+      width: auto;
+      padding: 5px 10px;
+      margin-left: 10px;
+    }
+
     .hidden {
       display: none;
     }
 
     ul {
-      padding-left: 20px;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      background: #f5f5f5;
+      padding: 8px;
+      border-radius: 6px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .total {
+      font-weight: bold;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -54,27 +85,37 @@
 
   <h2>Expense Tracker</h2>
 
-  <!-- Register -->
-  <h3>Register</h3>
-  <input id="regEmail" placeholder="Email">
-  <input id="regPassword" type="password" placeholder="Password">
-  <button onclick="register()">Create Account</button>
+  <!-- AUTH SECTION -->
+  <div id="authSection">
 
-  <!-- Login -->
-  <h3>Login</h3>
-  <input id="loginEmail" placeholder="Email">
-  <input id="loginPassword" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
+    <h3>Register</h3>
+    <input id="regEmail" placeholder="Email">
+    <input id="regPassword" type="password" placeholder="Password">
+    <button onclick="register()">Create Account</button>
 
-  <!-- Dashboard -->
+    <h3>Login</h3>
+    <input id="loginEmail" placeholder="Email">
+    <input id="loginPassword" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+
+  </div>
+
+  <!-- DASHBOARD -->
   <div id="dashboard" class="hidden">
-    <h3>Add Expense</h3>
-    <input id="title" placeholder="Title">
-    <input id="amount" placeholder="Amount">
-    <button onclick="addExpense()">Add</button>
 
-    <h3>Your Expenses</h3>
+    <div class="top-bar">
+      <h3>Your Expenses</h3>
+      <button onclick="logout()">Logout</button>
+    </div>
+
+    <input id="title" placeholder="Title">
+    <input id="amount" type="number" placeholder="Amount">
+    <button onclick="addExpense()">Add Expense</button>
+
     <ul id="expenses"></ul>
+
+    <div class="total" id="totalAmount"></div>
+
   </div>
 
 </div>
@@ -83,9 +124,22 @@
   const API = "https://expense-tracker-saas-production.up.railway.app/api";
   let token = localStorage.getItem("token");
 
-  if (token) {
-    document.getElementById("dashboard").classList.remove("hidden");
+  const authSection = document.getElementById("authSection");
+  const dashboard = document.getElementById("dashboard");
+
+  if (token) showDashboard();
+
+  function showDashboard() {
+    authSection.classList.add("hidden");
+    dashboard.classList.remove("hidden");
     loadExpenses();
+  }
+
+  function logout() {
+    localStorage.removeItem("token");
+    token = null;
+    dashboard.classList.add("hidden");
+    authSection.classList.remove("hidden");
   }
 
   async function register() {
@@ -117,8 +171,7 @@
     if (data.token) {
       localStorage.setItem("token", data.token);
       token = data.token;
-      document.getElementById("dashboard").classList.remove("hidden");
-      loadExpenses();
+      showDashboard();
     } else {
       alert("Login failed");
     }
@@ -137,6 +190,20 @@
       body: JSON.stringify({ title, amount })
     });
 
+    document.getElementById("title").value = "";
+    document.getElementById("amount").value = "";
+
+    loadExpenses();
+  }
+
+  async function deleteExpense(id) {
+    await fetch(API + "/expenses/" + id, {
+      method: "DELETE",
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
     loadExpenses();
   }
 
@@ -150,13 +217,26 @@
     const data = await res.json();
 
     const list = document.getElementById("expenses");
+    const totalDiv = document.getElementById("totalAmount");
+
     list.innerHTML = "";
 
+    let total = 0;
+
     data.forEach(exp => {
+      total += parseFloat(exp.amount);
+
       const li = document.createElement("li");
-      li.textContent = exp.title + " - ₹" + exp.amount;
+
+      li.innerHTML = `
+        <span>${exp.title} - ₹${exp.amount}</span>
+        <button class="delete" onclick="deleteExpense(${exp.id})">X</button>
+      `;
+
       list.appendChild(li);
     });
+
+    totalDiv.textContent = "Total: ₹" + total;
   }
 </script>
 
