@@ -6,10 +6,30 @@ import { authMiddleware, AuthRequest } from "../middleware/auth";
 
 const router = express.Router();
 
+/* ------------------ HELPERS ------------------ */
+
+function isValidEmail(email: string) {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+}
+
 /* ------------------ AUTH ------------------ */
 
 router.post("/register", async (req, res) => {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password required" });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: "Invalid email format" });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  }
+
   const db = getDB();
 
   try {
@@ -21,13 +41,18 @@ router.post("/register", async (req, res) => {
     );
 
     res.json({ message: "User registered" });
-  } catch (err) {
+  } catch {
     res.status(400).json({ message: "User already exists" });
   }
 });
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password required" });
+  }
+
   const db = getDB();
 
   const result = await db.query(
@@ -60,6 +85,11 @@ router.post("/login", async (req, res) => {
 
 router.post("/expenses", authMiddleware, async (req: AuthRequest, res) => {
   const { title, amount } = req.body;
+
+  if (!title || !amount) {
+    return res.status(400).json({ message: "Title and amount required" });
+  }
+
   const db = getDB();
 
   await db.query(
