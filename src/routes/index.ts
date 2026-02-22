@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
 import { getDB } from "../database";
 import { authMiddleware, AuthRequest } from "../middleware/auth";
 
@@ -12,6 +13,20 @@ function isValidEmail(email: string) {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return regex.test(email);
 }
+
+function isStrongPassword(password: string) {
+  const strongRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+  return strongRegex.test(password);
+}
+
+/* ------------------ LOGIN RATE LIMIT ------------------ */
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { message: "Too many login attempts. Try again later." }
+});
 
 /* ------------------ AUTH ------------------ */
 
@@ -26,14 +41,17 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ message: "Invalid email format" });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({
+      message:
+        "Password must be 8+ chars, include uppercase, lowercase, number & special character"
+    });
   }
 
   const db = getDB();
 
   try {
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 12);
 
     await db.query(
       "INSERT INTO users (email, password) VALUES ($1, $2)",
@@ -46,7 +64,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
