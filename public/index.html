@@ -26,9 +26,22 @@
     input, select {
       width: 100%;
       padding: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       border-radius: 6px;
       border: 1px solid #ccc;
+    }
+
+    .password-wrapper {
+      position: relative;
+    }
+
+    .toggle-btn {
+      position: absolute;
+      right: 8px;
+      top: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #667eea;
     }
 
     button {
@@ -83,18 +96,27 @@
   <div id="authSection">
     <h3>Register</h3>
     <input id="regEmail" placeholder="Email">
-    <input id="regPassword" type="password" placeholder="Password">
+
+    <div class="password-wrapper">
+      <input id="regPassword" type="password" placeholder="Password">
+      <span class="toggle-btn" onclick="togglePassword('regPassword', this)">Show</span>
+    </div>
+
     <button onclick="register()">Create Account</button>
 
     <h3>Login</h3>
     <input id="loginEmail" placeholder="Email">
-    <input id="loginPassword" type="password" placeholder="Password">
+
+    <div class="password-wrapper">
+      <input id="loginPassword" type="password" placeholder="Password">
+      <span class="toggle-btn" onclick="togglePassword('loginPassword', this)">Show</span>
+    </div>
+
     <button onclick="login()">Login</button>
   </div>
 
   <!-- DASHBOARD -->
   <div id="dashboard" class="hidden">
-
     <div class="top-bar">
       <h3>Dashboard</h3>
       <button onclick="logout()">Logout</button>
@@ -128,7 +150,6 @@
     <h4>Total This Month: ₹<span id="monthlyTotal">0</span></h4>
 
     <canvas id="expenseChart"></canvas>
-
   </div>
 
 </div>
@@ -142,6 +163,17 @@
   const dashboard = document.getElementById("dashboard");
 
   if (token) showDashboard();
+
+  function togglePassword(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === "password") {
+      input.type = "text";
+      btn.textContent = "Hide";
+    } else {
+      input.type = "password";
+      btn.textContent = "Show";
+    }
+  }
 
   function showDashboard() {
     authSection.classList.add("hidden");
@@ -205,8 +237,9 @@
       body: JSON.stringify({ title, amount, category })
     });
 
-    title.value = "";
-    amount.value = "";
+    document.getElementById("title").value = "";
+    document.getElementById("amount").value = "";
+
     loadExpenses();
   }
 
@@ -236,7 +269,6 @@
 
     let monthlyTotal = 0;
     const categoryTotals = {};
-
     const currentMonth = new Date().getMonth();
 
     data.forEach(exp => {
