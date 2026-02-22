@@ -1,16 +1,15 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { getDB } from "../database";
 import { authMiddleware } from "../middleware/auth";
-import { Request } from "express";
+
+const router = express.Router();
 
 interface AuthRequest extends Request {
   userId?: number;
 }
-
-const router = express.Router();
 
 /* ------------------ HELPERS ------------------ */
 
@@ -35,7 +34,7 @@ const loginLimiter = rateLimit({
 
 /* ------------------ AUTH ------------------ */
 
-router.post("/register", async (req, res) => {
+router.post("/register", async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   if (!email || !password)
@@ -66,7 +65,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-router.post("/login", loginLimiter, async (req, res) => {
+router.post("/login", loginLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   const db = getDB();
@@ -97,51 +96,63 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 /* ------------------ EXPENSES ------------------ */
 
-router.post("/expenses", authMiddleware, async (req: AuthRequest, res) => {
-  const { title, amount, category } = req.body;
+router.post(
+  "/expenses",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    const { title, amount, category } = req.body;
 
-  if (!title || !amount)
-    return res.status(400).json({ message: "Title and amount required" });
+    if (!title || !amount)
+      return res.status(400).json({ message: "Title and amount required" });
 
-  const db = getDB();
+    const db = getDB();
 
-  await db.query(
-    "INSERT INTO expenses (title, amount, category, user_id) VALUES ($1, $2, $3, $4)",
-    [title, amount, category || "General", req.userId]
-  );
+    await db.query(
+      "INSERT INTO expenses (title, amount, category, user_id) VALUES ($1, $2, $3, $4)",
+      [title, amount, category || "General", req.userId]
+    );
 
-  res.json({ message: "Expense added" });
-});
-
-router.get("/expenses", authMiddleware, async (req: AuthRequest, res) => {
-  const { category } = req.query;
-  const db = getDB();
-
-  let query = "SELECT * FROM expenses WHERE user_id = $1";
-  let values: any[] = [req.userId];
-
-  if (category) {
-    query += " AND category = $2";
-    values.push(category);
+    res.json({ message: "Expense added" });
   }
+);
 
-  query += " ORDER BY created_at DESC";
+router.get(
+  "/expenses",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    const { category } = req.query;
+    const db = getDB();
 
-  const result = await db.query(query, values);
+    let query = "SELECT * FROM expenses WHERE user_id = $1";
+    let values: any[] = [req.userId];
 
-  res.json(result.rows);
-});
+    if (category) {
+      query += " AND category = $2";
+      values.push(category);
+    }
 
-router.delete("/expenses/:id", authMiddleware, async (req: AuthRequest, res) => {
-  const db = getDB();
-  const { id } = req.params;
+    query += " ORDER BY created_at DESC";
 
-  await db.query(
-    "DELETE FROM expenses WHERE id = $1 AND user_id = $2",
-    [id, req.userId]
-  );
+    const result = await db.query(query, values);
 
-  res.json({ message: "Expense deleted" });
-});
+    res.json(result.rows);
+  }
+);
+
+router.delete(
+  "/expenses/:id",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    const db = getDB();
+    const { id } = req.params;
+
+    await db.query(
+      "DELETE FROM expenses WHERE id = $1 AND user_id = $2",
+      [id, req.userId]
+    );
+
+    res.json({ message: "Expense deleted" });
+  }
+);
 
 export default router;
