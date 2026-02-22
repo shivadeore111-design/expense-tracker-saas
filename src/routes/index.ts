@@ -1,127 +1,96 @@
-import express, { Response } from "express";
+import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { getDB } from "../database";
-import { authenticate, AuthRequest } from "../middleware/auth";
+import { authMiddleware, AuthRequest } from "../middleware/auth";
 
 const router = express.Router();
 
-const SECRET = process.env.JWT_SECRET || "supersecretkey";
+/* ------------------ AUTH ------------------ */
 
-/* ===========================
-   AUTH ROUTES
-=========================== */
+router.post("/register", async (req, res) => {
+  const { email, password } = req.body;
+  const db = getDB();
 
-// Register
-router.post("/register", async (req, res: Response) => {
-  const { name, password } = req.body;
-  const db = await getDB();
+  try {
+    const hashed = await bcrypt.hash(password, 10);
 
-  const existing = await db.get("SELECT * FROM users WHERE name = ?", [name]);
-  if (existing) return res.status(400).json({ error: "User exists" });
+    await db.query(
+      "INSERT INTO users (email, password) VALUES ($1, $2)",
+      [email, hashed]
+    );
 
-  const hashed = await bcrypt.hash(password, 10);
+    res.json({ message: "User registered" });
+  } catch (err) {
+    res.status(400).json({ message: "User already exists" });
+  }
+});
 
-  const result = await db.run(
-    "INSERT INTO users (name, password) VALUES (?, ?)",
-    [name, hashed]
+router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  const db = getDB();
+
+  const result = await db.query(
+    "SELECT * FROM users WHERE email = $1",
+    [email]
   );
 
-  const token = jwt.sign({ id: result.lastID, name }, SECRET, {
-    expiresIn: "1h"
-  });
+  const user = result.rows[0];
+
+  if (!user) {
+    return res.status(400).json({ message: "Invalid credentials" });
+  }
+
+  const valid = await bcrypt.compare(password, user.password);
+
+  if (!valid) {
+    return res.status(400).json({ message: "Invalid credentials" });
+  }
+
+  const token = jwt.sign(
+    { userId: user.id },
+    process.env.JWT_SECRET as string,
+    { expiresIn: "7d" }
+  );
 
   res.json({ token });
 });
 
-// Login
-router.post("/login", async (req, res: Response) => {
-  const { name, password } = req.body;
-  const db = await getDB();
+/* ------------------ EXPENSES ------------------ */
 
-  const user = await db.get("SELECT * FROM users WHERE name = ?", [name]);
-  if (!user) return res.status(400).json({ error: "Invalid credentials" });
+router.post("/expenses", authMiddleware, async (req: AuthRequest, res) => {
+  const { title, amount } = req.body;
+  const db = getDB();
 
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(400).json({ error: "Invalid credentials" });
+  await db.query(
+    "INSERT INTO expenses (title, amount, user_id) VALUES ($1, $2, $3)",
+    [title, amount, req.userId]
+  );
 
-  const token = jwt.sign({ id: user.id, name }, SECRET, {
-    expiresIn: "1h"
-  });
-
-  res.json({ token });
+  res.json({ message: "Expense added" });
 });
 
-/* ===========================
-   EXPENSE ROUTES (Protected)
-=========================== */
+router.get("/expenses", authMiddleware, async (req: AuthRequest, res) => {
+  const db = getDB();
 
-// Get expenses
-router.get(
-  "/expenses",
-  authenticate,
-  async (req: AuthRequest, res: Response) => {
-    const db = await getDB();
+  const result = await db.query(
+    "SELECT * FROM expenses WHERE user_id = $1 ORDER BY created_at DESC",
+    [req.userId]
+  );
 
-    const expenses = await db.all(
-      "SELECT * FROM expenses WHERE user_id = ?",
-      [req.user.id]
-    );
+  res.json(result.rows);
+});
 
-    res.json(expenses);
-  }
-);
+router.delete("/expenses/:id", authMiddleware, async (req: AuthRequest, res) => {
+  const db = getDB();
+  const { id } = req.params;
 
-// Add expense
-router.post(
-  "/expenses",
-  authenticate,
-  async (req: AuthRequest, res: Response) => {
-    const { title, amount } = req.body;
-    const db = await getDB();
+  await db.query(
+    "DELETE FROM expenses WHERE id = $1 AND user_id = $2",
+    [id, req.userId]
+  );
 
-    const result = await db.run(
-      "INSERT INTO expenses (title, amount, user_id) VALUES (?, ?, ?)",
-      [title, amount, req.user.id]
-    );
-
-    res.json({ id: result.lastID, title, amount });
-  }
-);
-
-// Update expense
-router.put(
-  "/expenses/:id",
-  authenticate,
-  async (req: AuthRequest, res: Response) => {
-    const expenseId = Number(req.params.id);
-    const { title, amount } = req.body;
-    const db = await getDB();
-
-    await db.run(
-      "UPDATE expenses SET title = ?, amount = ? WHERE id = ? AND user_id = ?",
-      [title, amount, expenseId, req.user.id]
-    );
-
-    res.json({ message: "Updated" });
-  }
-);
-
-// Delete expense
-router.delete(
-  "/expenses/:id",
-  authenticate,
-  async (req: AuthRequest, res: Response) => {
-    const expenseId = Number(req.params.id);
-    const db = await getDB();
-
-    await db.run(
-      "DELETE FROM expenses WHERE id = ? AND user_id = ?",
-      [expenseId, req.user.id]
-    );
-
-    res.json({ message: "Deleted" });
-  }
-);
+  res.json({ message: "Expense deleted" });
+});
 
 export default router;

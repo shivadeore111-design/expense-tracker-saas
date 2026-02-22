@@ -1,28 +1,26 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import routes from "./routes";
+import path from "path";
 import { initDB } from "./database";
-
-dotenv.config();
+import routes from "./routes";
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Health check
+// Serve frontend
+app.use(express.static(path.join(__dirname, "../public")));
+
+app.use("/api", routes);
+
 app.get("/", (_req, res) => {
-  res.send("Expense Tracker SaaS API running");
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-// Start server properly (async-safe)
 async function startServer() {
   try {
-    await initDB(); // Initialize database first
-
-    app.use("/api", routes);
+    await initDB();
 
     const PORT = process.env.PORT || 3000;
 
@@ -30,7 +28,7 @@ async function startServer() {
       console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    console.error("Startup failed:", error);
     process.exit(1);
   }
 }

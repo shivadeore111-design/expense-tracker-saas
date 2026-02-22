@@ -2,264 +2,162 @@
 <html>
 <head>
   <title>Expense Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+      font-family: Arial;
       background: linear-gradient(135deg, #667eea, #764ba2);
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      height: 100vh;
     }
 
-    .container {
+    .card {
       background: white;
-      width: 100%;
-      max-width: 550px;
       padding: 30px;
-      border-radius: 16px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      border-radius: 12px;
+      width: 350px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-
-    h1 { text-align: center; }
 
     input {
       width: 100%;
       padding: 10px;
-      margin-top: 8px;
-      margin-bottom: 12px;
-      border-radius: 8px;
-      border: 1px solid #ddd;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
     }
 
     button {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-      margin-right: 5px;
-    }
-
-    .primary { background: #667eea; color: white; }
-    .primary:hover { background: #5a67d8; }
-
-    .edit-btn { background: #38a169; color: white; }
-    .delete-btn { background: #e53e3e; color: white; }
-
-    .logout-btn {
-      background: #e53e3e;
-      color: white;
-      width: 100%;
-      margin-top: 15px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-
-    th, td { padding: 8px; font-size: 14px; }
-    th { border-bottom: 2px solid #eee; }
-    tr:not(:last-child) td { border-bottom: 1px solid #f2f2f2; }
-
-    .hidden { display: none; }
-
-    .total-box {
-      background: #f7fafc;
       padding: 10px;
-      border-radius: 8px;
-      margin-top: 15px;
-      font-weight: bold;
-      text-align: center;
+      border: none;
+      border-radius: 6px;
+      background: #667eea;
+      color: white;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    ul {
+      padding-left: 20px;
     }
   </style>
 </head>
 <body>
 
-<div class="container">
+<div class="card">
 
-<h1>Expense Tracker</h1>
+  <h2>Expense Tracker</h2>
 
-<div id="authSection">
-  <h2>Register</h2>
-  <input id="regName" placeholder="Username">
-  <input id="regPass" type="password" placeholder="Password">
-  <button class="primary" onclick="register()">Create Account</button>
+  <!-- Register -->
+  <h3>Register</h3>
+  <input id="regEmail" placeholder="Email">
+  <input id="regPassword" type="password" placeholder="Password">
+  <button onclick="register()">Create Account</button>
 
-  <h2>Login</h2>
-  <input id="loginName" placeholder="Username">
-  <input id="loginPass" type="password" placeholder="Password">
-  <button class="primary" onclick="login()">Login</button>
-</div>
+  <!-- Login -->
+  <h3>Login</h3>
+  <input id="loginEmail" placeholder="Email">
+  <input id="loginPassword" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
 
-<div id="appSection" class="hidden">
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+    <h3>Add Expense</h3>
+    <input id="title" placeholder="Title">
+    <input id="amount" placeholder="Amount">
+    <button onclick="addExpense()">Add</button>
 
-  <h2>Add Expense</h2>
-  <input id="title" placeholder="Expense title">
-  <input id="amount" placeholder="Amount">
-  <button class="primary" onclick="addExpense()">Add Expense</button>
-
-  <div class="total-box">
-    Total: ₹<span id="totalAmount">0</span>
+    <h3>Your Expenses</h3>
+    <ul id="expenses"></ul>
   </div>
-
-  <h2>Your Expenses</h2>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Title</th>
-        <th>Amount</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="expenseTable"></tbody>
-  </table>
-
-  <button class="logout-btn" onclick="logout()">Logout</button>
-
-</div>
 
 </div>
 
 <script>
-let token = localStorage.getItem("token");
+  const API = "https://expense-tracker-saas-production.up.railway.app/api";
+  let token = localStorage.getItem("token");
 
-if (token) {
-  showApp();
-  loadExpenses();
-}
-
-function showApp() {
-  authSection.classList.add("hidden");
-  appSection.classList.remove("hidden");
-}
-
-function showAuth() {
-  authSection.classList.remove("hidden");
-  appSection.classList.add("hidden");
-}
-
-async function register() {
-  const res = await fetch("/api/register", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      name: regName.value,
-      password: regPass.value
-    })
-  });
-
-  const data = await res.json();
-  if (data.token) {
-    localStorage.setItem("token", data.token);
-    token = data.token;
-    showApp();
+  if (token) {
+    document.getElementById("dashboard").classList.remove("hidden");
     loadExpenses();
-  } else alert(data.error);
-}
+  }
 
-async function login() {
-  const res = await fetch("/api/login", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      name: loginName.value,
-      password: loginPass.value
-    })
-  });
+  async function register() {
+    const email = document.getElementById("regEmail").value;
+    const password = document.getElementById("regPassword").value;
 
-  const data = await res.json();
-  if (data.token) {
-    localStorage.setItem("token", data.token);
-    token = data.token;
-    showApp();
+    const res = await fetch(API + "/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+    alert(data.message);
+  }
+
+  async function login() {
+    const email = document.getElementById("loginEmail").value;
+    const password = document.getElementById("loginPassword").value;
+
+    const res = await fetch(API + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      token = data.token;
+      document.getElementById("dashboard").classList.remove("hidden");
+      loadExpenses();
+    } else {
+      alert("Login failed");
+    }
+  }
+
+  async function addExpense() {
+    const title = document.getElementById("title").value;
+    const amount = document.getElementById("amount").value;
+
+    await fetch(API + "/expenses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify({ title, amount })
+    });
+
     loadExpenses();
-  } else alert(data.error);
-}
+  }
 
-async function addExpense() {
-  await fetch("/api/expenses", {
-    method: "POST",
-    headers: {
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+token
-    },
-    body: JSON.stringify({
-      title: title.value,
-      amount: amount.value
-    })
-  });
+  async function loadExpenses() {
+    const res = await fetch(API + "/expenses", {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
 
-  loadExpenses();
-}
+    const data = await res.json();
 
-async function deleteExpense(id) {
-  await fetch("/api/expenses/"+id, {
-    method: "DELETE",
-    headers: {"Authorization":"Bearer "+token}
-  });
-  loadExpenses();
-}
+    const list = document.getElementById("expenses");
+    list.innerHTML = "";
 
-async function editExpense(id, oldTitle, oldAmount) {
-  const newTitle = prompt("Edit title:", oldTitle);
-  const newAmount = prompt("Edit amount:", oldAmount);
-
-  if (!newTitle || !newAmount) return;
-
-  await fetch("/api/expenses/"+id, {
-    method: "PUT",
-    headers: {
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+token
-    },
-    body: JSON.stringify({
-      title: newTitle,
-      amount: newAmount
-    })
-  });
-
-  loadExpenses();
-}
-
-async function loadExpenses() {
-  const res = await fetch("/api/expenses", {
-    headers: {"Authorization":"Bearer "+token}
-  });
-
-  const data = await res.json();
-  expenseTable.innerHTML = "";
-
-  let total = 0;
-
-  data.forEach(exp => {
-    total += Number(exp.amount);
-
-    expenseTable.innerHTML += `
-      <tr>
-        <td>${exp.title}</td>
-        <td>₹${exp.amount}</td>
-        <td>
-          <button class="edit-btn" onclick="editExpense(${exp.id}, '${exp.title}', '${exp.amount}')">Edit</button>
-          <button class="delete-btn" onclick="deleteExpense(${exp.id})">Delete</button>
-        </td>
-      </tr>
-    `;
-  });
-
-  totalAmount.innerText = total;
-}
-
-function logout() {
-  localStorage.removeItem("token");
-  token = null;
-  showAuth();
-}
+    data.forEach(exp => {
+      const li = document.createElement("li");
+      li.textContent = exp.title + " - ₹" + exp.amount;
+      list.appendChild(li);
+    });
+  }
 </script>
 
 </body>
