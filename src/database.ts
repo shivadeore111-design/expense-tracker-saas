@@ -1,8 +1,10 @@
 import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import { open, Database } from "sqlite";
+
+let db: Database<sqlite3.Database, sqlite3.Statement>;
 
 export async function initDB() {
-  const db = await open({
+  db = await open({
     filename: "./database.sqlite",
     driver: sqlite3.Database
   });
@@ -10,20 +12,25 @@ export async function initDB() {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      password TEXT NOT NULL
-    );
+      name TEXT UNIQUE,
+      password TEXT
+    )
   `);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      amount REAL NOT NULL,
-      user_id INTEGER NOT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
+      title TEXT,
+      amount REAL,
+      user_id INTEGER,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
   `);
+}
 
+export function getDB() {
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
   return db;
 }
