@@ -21,6 +21,7 @@ export async function initDB() {
       id SERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       amount NUMERIC NOT NULL,
+      category TEXT DEFAULT 'General',
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
