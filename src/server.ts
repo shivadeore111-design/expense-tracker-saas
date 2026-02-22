@@ -7,10 +7,13 @@ import routes from "./routes";
 
 const app = express();
 
+/* 🔐 IMPORTANT: Trust Railway proxy */
+app.set("trust proxy", 1);
+
 app.use(cors());
 app.use(express.json());
 
-// 🔐 Global rate limit (100 requests / 15 min per IP)
+// Global rate limit
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
