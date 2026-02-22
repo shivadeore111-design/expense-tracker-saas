@@ -1,32 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Expense Tracker</title>
+  <title>Expense Tracker Pro</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
+      margin: 0;
       font-family: Arial;
       background: linear-gradient(135deg, #667eea, #764ba2);
       display: flex;
       justify-content: center;
-      align-items: center;
-      height: 100vh;
+      padding: 40px 0;
     }
 
     .card {
       background: white;
-      padding: 25px;
-      border-radius: 12px;
-      width: 420px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-      overflow-y: auto;
-      max-height: 95vh;
+      width: 500px;
+      border-radius: 14px;
+      padding: 30px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    }
+
+    h2 {
+      margin-top: 0;
     }
 
     input, select {
       width: 100%;
-      padding: 8px;
-      margin-bottom: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
       border-radius: 6px;
       border: 1px solid #ccc;
     }
@@ -37,22 +39,23 @@
 
     .toggle-btn {
       position: absolute;
-      right: 8px;
-      top: 6px;
+      right: 10px;
+      top: 8px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 12px;
       color: #667eea;
     }
 
     button {
-      padding: 8px;
+      width: 100%;
+      padding: 10px;
       border: none;
       border-radius: 6px;
       background: #667eea;
       color: white;
       cursor: pointer;
-      width: 100%;
       margin-bottom: 10px;
+      font-weight: bold;
     }
 
     button.delete {
@@ -70,8 +73,8 @@
       display: flex;
       justify-content: space-between;
       background: #f3f3f3;
-      padding: 6px;
-      margin-bottom: 5px;
+      padding: 8px;
+      margin-bottom: 6px;
       border-radius: 6px;
     }
 
@@ -79,10 +82,13 @@
       display: none;
     }
 
-    .top-bar {
+    .row {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      gap: 10px;
+    }
+
+    canvas {
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -90,7 +96,7 @@
 
 <div class="card">
 
-  <h2>Expense Tracker</h2>
+  <h2>Expense Tracker Pro</h2>
 
   <!-- AUTH -->
   <div id="authSection">
@@ -117,13 +123,13 @@
 
   <!-- DASHBOARD -->
   <div id="dashboard" class="hidden">
-    <div class="top-bar">
-      <h3>Dashboard</h3>
-      <button onclick="logout()">Logout</button>
-    </div>
 
-    <input id="title" placeholder="Title">
-    <input id="amount" type="number" placeholder="Amount">
+    <button onclick="logout()">Logout</button>
+
+    <div class="row">
+      <input id="title" placeholder="Title">
+      <input id="amount" type="number" placeholder="Amount">
+    </div>
 
     <select id="category">
       <option>General</option>
@@ -135,7 +141,7 @@
 
     <button onclick="addExpense()">Add Expense</button>
 
-    <h4>Filter by Category</h4>
+    <h4>Filter</h4>
     <select id="filterCategory" onchange="loadExpenses()">
       <option value="">All</option>
       <option>General</option>
@@ -145,11 +151,13 @@
       <option>Bills</option>
     </select>
 
-    <ul id="expenses"></ul>
-
     <h4>Total This Month: ₹<span id="monthlyTotal">0</span></h4>
 
-    <canvas id="expenseChart"></canvas>
+    <ul id="expenses"></ul>
+
+    <canvas id="categoryChart"></canvas>
+    <canvas id="monthlyChart"></canvas>
+
   </div>
 
 </div>
@@ -157,15 +165,16 @@
 <script>
   const API = "https://expense-tracker-saas-production.up.railway.app/api";
   let token = localStorage.getItem("token");
-  let chart;
+  let categoryChart;
+  let monthlyChart;
 
   const authSection = document.getElementById("authSection");
   const dashboard = document.getElementById("dashboard");
 
   if (token) showDashboard();
 
-  function togglePassword(inputId, btn) {
-    const input = document.getElementById(inputId);
+  function togglePassword(id, btn) {
+    const input = document.getElementById(id);
     if (input.type === "password") {
       input.type = "text";
       btn.textContent = "Hide";
@@ -228,13 +237,19 @@
     const amount = document.getElementById("amount").value;
     const category = document.getElementById("category").value;
 
+    if (!title || !amount) return alert("Enter title & amount");
+
     await fetch(API + "/expenses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token
       },
-      body: JSON.stringify({ title, amount, category })
+      body: JSON.stringify({
+        title,
+        amount: parseFloat(amount),
+        category
+      })
     });
 
     document.getElementById("title").value = "";
@@ -248,13 +263,11 @@
       method: "DELETE",
       headers: { "Authorization": "Bearer " + token }
     });
-
     loadExpenses();
   }
 
   async function loadExpenses() {
     const filter = document.getElementById("filterCategory").value;
-
     let url = API + "/expenses";
     if (filter) url += "?category=" + filter;
 
@@ -269,16 +282,23 @@
 
     let monthlyTotal = 0;
     const categoryTotals = {};
+    const monthlyTotals = {};
+
     const currentMonth = new Date().getMonth();
 
     data.forEach(exp => {
       const date = new Date(exp.created_at);
+      const month = date.toLocaleString('default', { month: 'short' });
+
       if (date.getMonth() === currentMonth) {
         monthlyTotal += parseFloat(exp.amount);
       }
 
       categoryTotals[exp.category] =
         (categoryTotals[exp.category] || 0) + parseFloat(exp.amount);
+
+      monthlyTotals[month] =
+        (monthlyTotals[month] || 0) + parseFloat(exp.amount);
 
       const li = document.createElement("li");
       li.innerHTML = `
@@ -290,20 +310,38 @@
 
     document.getElementById("monthlyTotal").textContent = monthlyTotal;
 
-    renderChart(categoryTotals);
+    renderCategoryChart(categoryTotals);
+    renderMonthlyChart(monthlyTotals);
   }
 
-  function renderChart(categoryTotals) {
-    const ctx = document.getElementById("expenseChart").getContext("2d");
+  function renderCategoryChart(dataObj) {
+    const ctx = document.getElementById("categoryChart");
 
-    if (chart) chart.destroy();
+    if (categoryChart) categoryChart.destroy();
 
-    chart = new Chart(ctx, {
+    categoryChart = new Chart(ctx, {
       type: "pie",
       data: {
-        labels: Object.keys(categoryTotals),
+        labels: Object.keys(dataObj),
         datasets: [{
-          data: Object.values(categoryTotals)
+          data: Object.values(dataObj)
+        }]
+      }
+    });
+  }
+
+  function renderMonthlyChart(dataObj) {
+    const ctx = document.getElementById("monthlyChart");
+
+    if (monthlyChart) monthlyChart.destroy();
+
+    monthlyChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: Object.keys(dataObj),
+        datasets: [{
+          label: "Monthly Spending",
+          data: Object.values(dataObj)
         }]
       }
     });
