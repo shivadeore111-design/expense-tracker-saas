@@ -15,7 +15,7 @@
 
     .card {
       background: white;
-      width: 500px;
+      width: 520px;
       border-radius: 14px;
       padding: 30px;
       box-shadow: 0 15px 35px rgba(0,0,0,0.2);
@@ -23,14 +23,20 @@
 
     h2 {
       margin-top: 0;
+      text-align: center;
     }
 
     input, select {
       width: 100%;
       padding: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       border-radius: 6px;
       border: 1px solid #ccc;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
     }
 
     .password-wrapper {
@@ -54,14 +60,22 @@
       background: #667eea;
       color: white;
       cursor: pointer;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       font-weight: bold;
     }
 
     button.delete {
       background: #e74c3c;
       width: auto;
-      padding: 4px 8px;
+      padding: 4px 10px;
+      font-weight: normal;
+    }
+
+    .logout-btn {
+      background: #eee;
+      color: #333;
+      font-weight: normal;
+      margin-top: 20px;
     }
 
     ul {
@@ -72,8 +86,9 @@
     li {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       background: #f3f3f3;
-      padding: 8px;
+      padding: 8px 10px;
       margin-bottom: 6px;
       border-radius: 6px;
     }
@@ -82,13 +97,8 @@
       display: none;
     }
 
-    .row {
-      display: flex;
-      gap: 10px;
-    }
-
     canvas {
-      margin-top: 20px;
+      margin-top: 25px;
     }
   </style>
 </head>
@@ -124,8 +134,6 @@
   <!-- DASHBOARD -->
   <div id="dashboard" class="hidden">
 
-    <button onclick="logout()">Logout</button>
-
     <div class="row">
       <input id="title" placeholder="Title">
       <input id="amount" type="number" placeholder="Amount">
@@ -141,7 +149,7 @@
 
     <button onclick="addExpense()">Add Expense</button>
 
-    <h4>Filter</h4>
+    <h4>Filter by Category</h4>
     <select id="filterCategory" onchange="loadExpenses()">
       <option value="">All</option>
       <option>General</option>
@@ -157,6 +165,9 @@
 
     <canvas id="categoryChart"></canvas>
     <canvas id="monthlyChart"></canvas>
+
+    <!-- Logout at Bottom -->
+    <button class="logout-btn" onclick="logout()">Logout</button>
 
   </div>
 
@@ -283,7 +294,6 @@
     let monthlyTotal = 0;
     const categoryTotals = {};
     const monthlyTotals = {};
-
     const currentMonth = new Date().getMonth();
 
     data.forEach(exp => {
@@ -316,23 +326,19 @@
 
   function renderCategoryChart(dataObj) {
     const ctx = document.getElementById("categoryChart");
-
     if (categoryChart) categoryChart.destroy();
 
     categoryChart = new Chart(ctx, {
       type: "pie",
       data: {
         labels: Object.keys(dataObj),
-        datasets: [{
-          data: Object.values(dataObj)
-        }]
+        datasets: [{ data: Object.values(dataObj) }]
       }
     });
   }
 
   function renderMonthlyChart(dataObj) {
     const ctx = document.getElementById("monthlyChart");
-
     if (monthlyChart) monthlyChart.destroy();
 
     monthlyChart = new Chart(ctx, {
